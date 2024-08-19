@@ -1,1 +1,1 @@
-# VLALIB, the OS library for the Vula System
+# VLALIB, the OS library for the Vula Subsystem
