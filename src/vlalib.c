@@ -1,4 +1,8 @@
 #include "vlalib.h"
+#include <minwindef.h>
+#include <time.h>
+#include <winnt.h>
+#include <winternl.h>
 
 
 
@@ -284,6 +288,77 @@ static inline NTSTATUS VlOpenKeyboardDevice(PHANDLE kHandle){
     return status;
 }
 
+NTSTATUS VlCreateProcess(PCWSTR file_name, PCWSTR cmd_line)
+{
+    HANDLE processHandle = NULL; 
+    HANDLE threadHandle = NULL; 
+    UNICODE_STRING nt_file, imgpath, cmdline;
+    PRTL_USER_PROCESS_PARAMETERS processparameters = NULL;
+    RTL_USER_PROCESS_INFORMATION processinformation = {0}; 
+    WCHAR Env[2] = { 0,0 }; 
+    PKUSER_SHARED_DATA SharedData = (PKUSER_SHARED_DATA)USER_SHARED_DATA; 
+
+    RtlDosPathNameToNtPathName_U(file_name, &nt_file, NULL, NULL);
+
+    RtlInitUnicodeString(&imgpath, nt_file.Buffer);
+    RtlInitUnicodeString(&cmdline, cmd_line);
+
+    NTSTATUS status = RtlCreateProcessParameters(&processparameters, &imgpath, &imgpath, &imgpath, &cmdline, Env, NULL, NULL, NULL, NULL);
+    if (!NT_SUCCESS(status))
+    {
+        VlPrintStatus(L"RtlCreateProcessParameters", status);
+        return status;
+    }
+
+    OBJECT_ATTRIBUTES procAttr;
+    InitializeObjectAttributes(&procAttr, &imgpath, OBJ_CASE_INSENSITIVE, NULL, NULL);
+
+    status = RtlCreateUserProcess(
+        &imgpath,                 
+        0,                       
+        processparameters,       
+        NULL,                    
+        NULL,                    
+        NULL,                     
+        FALSE,                    
+        NULL,                     
+        NULL,                     
+        &processinformation        
+    );
+    if (!NT_SUCCESS(status))
+    {
+        VlPrintStatus(L"RtlCreateUserProcess", status);
+        RtlDestroyProcessParameters(processparameters); 
+        return status;
+    }
+    
+    status = NtResumeThread(processinformation.ThreadHandle, NULL);
+    if (!NT_SUCCESS(status))
+    {
+        VlPrintStatus(L"NtResumeThread", status);
+        NtClose(processinformation.ProcessHandle);
+        NtClose(processinformation.ThreadHandle);
+        RtlDestroyProcessParameters(processparameters); 
+        return status;
+    }
+
+    status = NtWaitForSingleObject(processinformation.ProcessHandle, TRUE, NULL);
+    if (!NT_SUCCESS(status))
+    {
+        VlPrintStatus(L"NtWaitForSingleObject", status);
+        NtClose(processinformation.ProcessHandle);
+        NtClose(processinformation.ThreadHandle);
+        RtlDestroyProcessParameters(processparameters); 
+        return status;
+    }
+
+    NtClose(processinformation.ProcessHandle);
+    NtClose(processinformation.ThreadHandle);
+    RtlDestroyProcessParameters(processparameters);
+
+    return STATUS_SUCCESS;
+}
+
 static inline NTSTATUS VlCreateKeyboardEvent(PHANDLE kEvent){
     static BOOL init = FALSE;
     OBJECT_ATTRIBUTES oAttributes;
@@ -429,6 +504,9 @@ void VlStrTok(WCHAR** firststring, size_t firststringsize, WCHAR** secondstring,
     (*firststring)[firststringsize - 1] = L'\0';
     (*secondstring)[secondstringsize - 1] = L'\0';
 }
+
+
+
 
 
 BOOL VlFreeString(WCHAR* string, size_t size){
