@@ -753,4 +753,5 @@ BOOL VlFreeString(WCHAR* string, size_t size);
 void VlStrTok(WCHAR** firststring, size_t firststringsize, WCHAR** secondstring, size_t secondstringsize, WCHAR delimiter, WCHAR* sourcestring);
 NTSTATUS VlCreateProcess(PCWSTR file_name, PCWSTR cmd_line);
 VOID VlPrintStatus(IN WCHAR* FunctionName, IN NTSTATUS Status);
+WCHAR* VlStrCat(WCHAR* destination, const WCHAR* source);
 #endif

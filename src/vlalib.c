@@ -506,6 +506,20 @@ void VlStrTok(WCHAR** firststring, size_t firststringsize, WCHAR** secondstring,
 }
 
 
+WCHAR* VlStrCat(WCHAR* destination, const WCHAR* source) {
+    WCHAR* dest = destination;
+
+    while (*dest != L'\0') {
+        dest++;
+    }
+    while (*source != L'\0') {
+        *dest = *source;
+        dest++;
+        source++;
+    }
+    *dest = L'\0';
+    return destination;
+}
 
 
 
